@@ -1,6 +1,6 @@
 namespace Sha1AlgorithmProject.Math.Interfaces
 {
-    public interface ISha1
+    public interface IHash
     {
         string GetHash(string message);
     }

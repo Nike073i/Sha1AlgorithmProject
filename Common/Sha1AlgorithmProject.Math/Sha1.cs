@@ -3,20 +3,12 @@ using Sha1AlgorithmProject.Math.Interfaces;
 
 namespace Sha1AlgorithmProject.Math
 {
-    public class Registers
+    public class Sha1 : IHash
     {
-        public uint A { get; set; }
-        public uint B { get; set; }
-        public uint C { get; set; }
-        public uint D { get; set; }
-        public uint E { get; set; }
-    }
-    public class Sha1 : ISha1
-    {
-        private static readonly uint BlockSizeBytes = 64;
-        private static readonly uint MessageLengthSizeBytes = 8;
-        private static readonly uint WordsCount = 80;
-        private static readonly uint[] Salt =
+        private readonly int BlockSizeBytes = 64;
+        private readonly int MessageLengthSizeBytes = 8;
+        private readonly int WordsCount = 80;
+        private readonly uint[] Salt =
         {
             0x5A827999,
             0x6ED9EBA1,
@@ -24,7 +16,7 @@ namespace Sha1AlgorithmProject.Math
             0xCA62C1D6
         };
 
-        private static readonly Registers InitialRegisters = new()
+        private Registers Buffer = new()
         {
             A = 0x67452301,
             B = 0xEFCDAB89,
@@ -46,17 +38,25 @@ namespace Sha1AlgorithmProject.Math
             throw new InvalidOperationException("Получено некорректное значение итерации - " + t);
         }
 
-        public static void CompleteBlock(ref List<byte> bytes)
+        private void CompleteBlock(ref List<byte> bytes)
         {
-            ulong length = (ulong)bytes.Count;
-            uint mod = (uint)length % BlockSizeBytes;
+            int length = bytes.Count;
+            int mod = length % BlockSizeBytes;
             bytes.Add(0x80);
-            uint messageBlockSizeBytes = BlockSizeBytes - MessageLengthSizeBytes;
-            uint countZeroBlocks = (mod == 0 || mod < messageBlockSizeBytes) ? messageBlockSizeBytes : BlockSizeBytes + messageBlockSizeBytes;
-            countZeroBlocks -= (mod + 1);
+            int messageBlockSizeBytes = BlockSizeBytes - MessageLengthSizeBytes;
+            int countZeroBlocks = -1;
+            if (mod < messageBlockSizeBytes)
+                countZeroBlocks += (messageBlockSizeBytes - mod);
+            else
+            {
+                if (mod == messageBlockSizeBytes)
+                    countZeroBlocks += BlockSizeBytes;
+                else
+                    countZeroBlocks += (BlockSizeBytes - mod + messageBlockSizeBytes);
+            }
             for (int i = 0; i < countZeroBlocks; ++i)
                 bytes.Add(0);
-            ulong lengthInBits = length * 8;
+            long lengthInBits = length * 8;
             byte[] length2Bytes = BitConverter.GetBytes(lengthInBits);
             bytes.AddRange(length2Bytes.Reverse());
         }
@@ -66,45 +66,24 @@ namespace Sha1AlgorithmProject.Math
             var listBytes = Encoding.UTF8.GetBytes(message).ToList();
             CompleteBlock(ref listBytes);
             var registers = Algorithm(listBytes);
-
-            var register2Bytes = new List<List<byte>>
-            {
-                BitConverter.GetBytes(registers.A).ToList(),
-                BitConverter.GetBytes(registers.B).ToList(),
-                BitConverter.GetBytes(registers.C).ToList(),
-                BitConverter.GetBytes(registers.D).ToList(),
-                BitConverter.GetBytes(registers.E).ToList()
-            };
-
-            foreach (var bytes in register2Bytes)
-            {
-                bytes.Reverse();
-            }
-
-            var union = new List<byte>();
-            union.AddRange(register2Bytes[0]);
-            union.AddRange(register2Bytes[1]);
-            union.AddRange(register2Bytes[2]);
-            union.AddRange(register2Bytes[3]);
-            union.AddRange(register2Bytes[4]);
-
-            return BitConverter.ToString(union.ToArray());
+            return registers.ToString();
         }
 
         private Registers Algorithm(List<byte> bytes)
         {
             long countBLocks = bytes.Count / BlockSizeBytes;
-            var registers = InitialRegisters;
+            var registers = Buffer;
             for (int i = 0; i < countBLocks; ++i)
             {
                 registers = BlockPrepare(block: bytes.GetRange(index: (int)(i * BlockSizeBytes),
-                count: (int)BlockSizeBytes), registers: registers);
+                count: (int)BlockSizeBytes), buffer: registers);
             }
             return registers;
         }
 
-        public static Registers BlockPrepare(List<byte> block, Registers registers)
+        private Registers BlockPrepare(List<byte> block, Registers buffer)
         {
+            var prepareBuffer = new Registers(buffer);
             uint[] words = new uint[WordsCount];
             for (int i = 0; i < 16; ++i)
             {
@@ -113,22 +92,23 @@ namespace Sha1AlgorithmProject.Math
                 words[i] = BitConverter.ToUInt32(wordListBytes.ToArray());
             }
 
-            for (int t = 0; t < 80; ++t)
+            for (int t = 16; t < WordsCount; ++t)
+                words[t] = CyclicShift32(value: words[t - 3] ^ words[t - 8] ^ words[t - 14] ^ words[t - 16], count: 1);
+
+            for (int t = 0; t < WordsCount; ++t)
             {
-                uint temp = CyclicShift(value: registers.A, count: 5) + LogicalFunction(t, registers.B, registers.C, registers.D)
-                 + registers.E + words[t] + Salt[t / 20];
-                if (t > 15)
-                    words[t] = CyclicShift(value: words[t - 3] ^ words[t - 8] ^ words[t - 14] ^ words[t - 16], count: 1);
-                registers.E = registers.D;
-                registers.D = registers.C;
-                registers.C = CyclicShift(registers.B, 30);
-                registers.B = registers.A;
-                registers.A = temp;
+                uint temp = CyclicShift32(value: prepareBuffer.A, count: 5) + LogicalFunction(t, prepareBuffer.B, prepareBuffer.C, prepareBuffer.D)
+                 + prepareBuffer.E + words[t] + Salt[t / 20];
+                prepareBuffer.E = prepareBuffer.D;
+                prepareBuffer.D = prepareBuffer.C;
+                prepareBuffer.C = CyclicShift32(value: prepareBuffer.B, count: 30);
+                prepareBuffer.B = prepareBuffer.A;
+                prepareBuffer.A = temp;
             }
-            return registers;
+            return buffer + prepareBuffer;
         }
 
-        private static uint CyclicShift(uint value, int count)
+        private static uint CyclicShift32(uint value, int count)
         {
             return (value << count) | (value >> (32 - count));
         }
