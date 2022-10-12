@@ -1,9 +1,8 @@
 using System.Text;
-using Sha1AlgorithmProject.Math.Interfaces;
 
 namespace Sha1AlgorithmProject.Math
 {
-    public class Sha1 : IHash
+    public class Sha1
     {
         private readonly int BlockSizeBytes = 64;
         private readonly int MessageLengthSizeBytes = 8;
@@ -61,12 +60,17 @@ namespace Sha1AlgorithmProject.Math
             bytes.AddRange(length2Bytes.Reverse());
         }
 
-        public string GetHash(string message)
+        public string GetHash(byte[] bytes)
         {
-            var listBytes = Encoding.UTF8.GetBytes(message).ToList();
+            var listBytes = bytes.ToList();
             CompleteBlock(ref listBytes);
             var registers = Algorithm(listBytes);
             return registers.ToString();
+        }
+
+        public string GetHash(string message)
+        {
+            return GetHash(Encoding.UTF8.GetBytes(message));
         }
 
         private Registers Algorithm(List<byte> bytes)
