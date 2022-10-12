@@ -49,6 +49,7 @@
                     <TextBox Text="{Binding Message}"
                              Margin="3"
                              Height="200"
+                             Width="600"
                              TextWrapping="Wrap" 
                              BorderThickness="1"/>
                     <Button Content="Получить хеш-код"
