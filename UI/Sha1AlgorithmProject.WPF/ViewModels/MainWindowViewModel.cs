@@ -10,32 +10,58 @@ namespace Sha1AlgorithmProject.WPF.ViewModels
 {
     public class MainWindowViewModel : ViewModel
     {
+
+        #region Title : string - Заголовок окна
+
+        ///<summary>Заголовок окна</summary>
         private string _title = "Хеширование текста";
+
+        ///<summary>Заголовок окна</summary>
         public string Title
         {
             get => _title;
             set => Set(ref _title, value);
         }
 
+        #endregion
+
+        #region Path : string - Путь файла
+
+        ///<summary>Путь файла</summary>
         private string _path;
+
+        ///<summary>Путь файла</summary>
         public string Path
         {
             get => _path;
             set => Set(ref _path, value);
         }
 
+        #endregion
+
+        #region Message : string - Сообщение для получения хэш-кода
+
+        ///<summary>Сообщение для получения хэш-кода</summary>
         private string _message = "Введите строку для получения хеша";
+        
+        ///<summary>Сообщение для получения хэш-кода</summary>
         public string Message
         {
             get => _message;
             set => Set(ref _message, value);
         }
 
+        #endregion
+
+        #region Команды вызова функционала
+
         public ICommand ShowAboutAuthorCommand { get; }
         public ICommand ShowAboutAlgorithmCommand { get; }
         public ICommand GetFileHashCommand { get; }
         public ICommand GetStringHashCommand { get; }
         public ICommand ReviewCommand { get; }
+
+        #endregion
 
         public MainWindowViewModel()
         {
